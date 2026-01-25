@@ -1,0 +1,41 @@
+app:
+  host: 0.0.0.0
+  port: 5001
+  debug: true
+
+model:
+  path: yolov8n.pt
+  yandex_disk_url: "https://disk.yandex.ru/d/your-model-link"  # URL to download model weights from Yandex Disk
+
+# File Paths
+paths:
+  uploads: static/uploads
+  results: static/results
+  reports: reports
+  history_file: static/request_history.json
+
+# Directories to create
+directories:
+  - static/uploads
+  - static/results
+  - reports
+
+video:
+  # Base frame interval in seconds
+  base_frame_interval: 2
+  # Minimum frame interval (for short videos)
+  min_frame_interval: 0.5
+  # Maximum video duration for minimum frame interval (in seconds)
+  max_short_video_duration: 30
+  # Minimum video duration for maximum frame interval (in seconds)
+  min_long_video_duration: 300
+
+cors:
+  origins: "*"
+
+frontend:
+  max_file_size_mb: 50
+  allowed_file_types:
+    - image/jpeg
+    - image/png
+    - video/mp4
