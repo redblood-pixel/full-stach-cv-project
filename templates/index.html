@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система учета игрушек в детском саду</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .result-container {
+            position: relative;
+            display: inline-block;
+        }
+        .detection-label {
+            position: absolute;
+            background-color: rgba(0, 255, 0, 0.7);
+            color: white;
+            padding: 2px 6px;
+            font-size: 12px;
+            border-radius: 3px;
+            z-index: 10;
+        }
+        .webcam-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: 20px auto;
+        }
+        #webcam-feed {
+            width: 100%;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background-color: #ccc;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-active {
+            background-color: #10B981;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Система учета игрушек в детском саду</h1>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Основной функционал -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">Анализ изображений</h2>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="image-upload">
+                        Загрузите изображение или несколько изображений с игрушками:
+                    </label>
+                    <input class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                           type="file" id="image-upload" accept="image/*" multiple>
+                </div>
+                
+                <button id="analyze-btn"
+                        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300 mr-2">
+                    Анализировать изображение
+                </button>
+                
+                <button id="analyze-batch-btn"
+                        class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300 mr-2">
+                    Анализировать группу изображений
+                </button>
+                
+                <button id="generate-pdf-report"
+                        class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300">
+                    Сгенерировать PDF отчет
+                </button>
+                
+                <div id="loading" class="hidden mt-4">
+                    <div class="flex items-center">
+                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Обработка изображения...
+                    </div>
+                </div>
+                
+                <div id="result" class="mt-4 hidden">
+                    <h3 class="text-lg font-semibold mb-2">Результаты анализа:</h3>
+                    <div class="result-container">
+                        <img id="result-image" class="max-w-full h-auto rounded-lg border">
+                    </div>
+                    <div id="detections" class="mt-4 p-4 bg-gray-50 rounded-lg"></div>
+                    <div id="summary" class="mt-4 p-4 bg-green-50 rounded-lg"></div>
+                </div>
+            </div>
+            
+            <!-- Загрузка видео -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">Анализ видео</h2>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="video-upload">
+                        Загрузите видео с игрушками:
+                    </label>
+                    <input class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                           type="file" id="video-upload" accept="video/*">
+                </div>
+                
+                <button id="analyze-video"
+                        class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300">
+                    Анализировать видео
+                </button>
+                
+                <div id="video-loading" class="hidden mt-4">
+                    <div class="flex items-center">
+                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Обработка видео...
+                    </div>
+                </div>
+                
+                <div id="video-result" class="mt-4 hidden">
+                    <h3 class="text-lg font-semibold mb-2">Результаты анализа видео:</h3>
+                    <div id="video-analysis-container" class="grid grid-cols-2 gap-4">
+                        <!-- Results will be inserted here -->
+                    </div>
+                    <div id="video-summary" class="mt-4 p-4 bg-green-50 rounded-lg"></div>
+                </div>
+            </div>
+            
+            <!-- Статистика и отчеты -->
+            <div class="bg-white rounded-lg shadow-md p-6 lg:col-span-2">
+                <h2 class="text-xl font-semibold mb-4">Статистика и отчеты</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="p-4 bg-blue-50 rounded-lg">
+                        <h3 class="text-sm font-semibold text-blue-800">Всего анализов</h3>
+                        <p id="total-requests" class="text-2xl font-bold text-blue-900">0</p>
+                    </div>
+                    <div class="p-4 bg-green-50 rounded-lg">
+                        <h3 class="text-sm font-semibold text-green-800">Всего детекций</h3>
+                        <p id="total-detections" class="text-2xl font-bold text-green-900">0</p>
+                    </div>
+                    <div class="p-4 bg-purple-50 rounded-lg">
+                        <h3 class="text-sm font-semibold text-purple-800">Уникальных классов</h3>
+                        <p id="unique-classes" class="text-2xl font-bold text-purple-900">0</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-lg font-semibold mb-2">Распределение по классам</h3>
+                        <canvas id="class-chart" width="400" height="200"></canvas>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold mb-2">Активность по дням</h3>
+                        <canvas id="timeline-chart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+                
+                <div class="mt-6">
+                    <button id="generate-report" 
+                            class="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300">
+                        Сгенерировать отчет
+                    </button>
+                </div>
+            </div>
+            
+            <!-- История запросов -->
+            <div class="bg-white rounded-lg shadow-md p-6 lg:col-span-2">
+                <h2 class="text-xl font-semibold mb-4">История запросов</h2>
+                <div id="history" class="space-y-4">
+                    <!-- История будет загружена через JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Глобальные переменные
+        let stream = null;
+        let chartClass = null;
+        let chartTimeline = null;
+
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            loadHistory();
+            loadStatistics();
+            
+            // Настройка обработчиков событий
+            document.getElementById('analyze-btn').addEventListener('click', analyzeImage);
+            document.getElementById('analyze-batch-btn').addEventListener('click', analyzeBatchImages);
+            document.getElementById('generate-pdf-report').addEventListener('click', generatePDFReport);
+            document.getElementById('analyze-video').addEventListener('click', analyzeVideo);
+            document.getElementById('generate-report').addEventListener('click', generateReport);
+        });
+
+        // Функция для загрузки истории запросов
+        async function loadHistory() {
+            try {
+                const response = await fetch('/history');
+                const history = await response.json();
+                
+                const historyContainer = document.getElementById('history');
+                historyContainer.innerHTML = '';
+                
+                // Отображаем последние 10 записей
+                const recentEntries = history.slice(-10).reverse();
+                
+                recentEntries.forEach(entry => {
+                    const entryElement = document.createElement('div');
+                    entryElement.className = 'border p-4 rounded-lg';
+                    
+                    let entryHTML = `
+                        <div class="flex justify-between items-start">
+                            <h3 class="text-lg font-semibold">Анализ #${entry.id}</h3>
+                            <span class="text-sm text-gray-500">${new Date(entry.timestamp).toLocaleString('ru-RU')}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-2">Тип: ${entry.type === 'image_upload' ? 'Загрузка изображения' : 'Веб-камера'}</p>
+                    `;
+                    
+                    // Отображение результата, если доступен
+                    if (entry.result_image) {
+                        entryHTML += `
+                            <div class="mt-2">
+                                <img src="/${entry.result_image}" alt="Результат анализа" class="max-w-full h-auto rounded">
+                            </div>
+                        `;
+                    }
+                    
+                    // Сводка по детекциям
+                    if (Object.keys(entry.summary).length > 0) {
+                        entryHTML += '<div class="mt-2 p-3 bg-gray-50 rounded">';
+                        entryHTML += '<h4 class="font-semibold text-sm mb-1">Найденные объекты:</h4>';
+                        for (const [className, count] of Object.entries(entry.summary)) {
+                            entryHTML += `<p class="text-sm">${className}: <strong>${count}</strong></p>`;
+                        }
+                        entryHTML += '</div>';
+                    }
+                    
+                    entryElement.innerHTML = entryHTML;
+                    historyContainer.appendChild(entryElement);
+                });
+                
+                if (recentEntries.length === 0) {
+                    historyContainer.innerHTML = '<p class="text-gray-500">История запросов пуста</p>';
+                }
+                
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+
+        // Функция для загрузки статистики
+        async function loadStatistics() {
+            try {
+                const response = await fetch('/history');
+                const history = await response.json();
+                
+                // Общая статистика
+                document.getElementById('total-requests').textContent = history.length;
+                
+                let totalDetections = 0;
+                const classDistribution = {};
+                const timeline = {};
+                
+                history.forEach(entry => {
+                    // Подсчет общего количества детекций
+                    totalDetections += entry.detections.length;
+                    
+                    // Распределение по классам
+                    Object.keys(entry.summary).forEach(className => {
+                        if (!classDistribution[className]) {
+                            classDistribution[className] = 0;
+                        }
+                        classDistribution[className] += entry.summary[className];
+                    });
+                    
+                    // Таймлайн по дням
+                    const date = entry.timestamp.split('T')[0];
+                    if (!timeline[date]) {
+                        timeline[date] = 0;
+                    }
+                    timeline[date] += 1;
+                });
+                
+                document.getElementById('total-detections').textContent = totalDetections;
+                document.getElementById('unique-classes').textContent = Object.keys(classDistribution).length;
+                
+                // Построение графиков
+                renderClassChart(classDistribution);
+                renderTimelineChart(timeline);
+                
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+            }
+        }
+
+        // Построение графика распределения по классам
+        function renderClassChart(classDistribution) {
+            const ctx = document.getElementById('class-chart').getContext('2d');
+            
+            // Сортировка по убыванию
+            const sortedEntries = Object.entries(classDistribution).sort((a, b) => b[1] - a[1]);
+            const labels = sortedEntries.slice(0, 10).map(entry => entry[0]);
+            const data = sortedEntries.slice(0, 10).map(entry => entry[1]);
+            
+            if (chartClass) {
+                chartClass.destroy();
+            }
+            
+            chartClass = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Количество детекций',
+                        data: data,
+                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Построение графика активности по дням
+        function renderTimelineChart(timeline) {
+            const ctx = document.getElementById('timeline-chart').getContext('2d');
+            
+            // Сортировка по дате
+            const sortedEntries = Object.entries(timeline).sort();
+            const labels = sortedEntries.map(entry => entry[0]);
+            const data = sortedEntries.map(entry => entry[1]);
+            
+            if (chartTimeline) {
+                chartTimeline.destroy();
+            }
+            
+            chartTimeline = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Количество анализов',
+                        data: data,
+                        fill: false,
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Анализ загруженного изображения
+        async function analyzeImage() {
+            const fileInput = document.getElementById('image-upload');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Пожалуйста, выберите изображение для анализа');
+                return;
+            }
+            
+            // Показываем индикатор загрузки
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('result').classList.add('hidden');
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Скрываем индикатор загрузки и показываем результат
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('result').classList.remove('hidden');
+                    
+                    // Отображаем результат
+                    document.getElementById('result-image').src = '/' + result.result_image;
+                    
+                    // Отображаем детекции
+                    const detectionsDiv = document.getElementById('detections');
+                    detectionsDiv.innerHTML = '<h4 class="font-semibold text-sm mb-2">Детекции:</h4>';
+                    
+                    if (result.detections.length > 0) {
+                        const detectionsList = document.createElement('ul');
+                        detectionsList.className = 'list-disc pl-5';
+                        
+                        result.detections.forEach(detection => {
+                            const li = document.createElement('li');
+                            li.className = 'text-sm';
+                            li.textContent = `${detection.class}: ${(detection.confidence * 100).toFixed(1)}%`;
+                            detectionsList.appendChild(li);
+                        });
+                        
+                        detectionsDiv.appendChild(detectionsList);
+                    } else {
+                        detectionsDiv.innerHTML += '<p class="text-sm text-gray-500">Объекты не найдены</p>';
+                    }
+                    
+                    // Отображаем сводку
+                    const summaryDiv = document.getElementById('summary');
+                    summaryDiv.innerHTML = '<h4 class="font-semibold text-sm mb-2">Сводка:</h4>';
+                    
+                    if (Object.keys(result.summary).length > 0) {
+                        const summaryList = document.createElement('ul');
+                        summaryList.className = 'list-disc pl-5';
+                        
+                        for (const [className, count] of Object.entries(result.summary)) {
+                            const li = document.createElement('li');
+                            li.className = 'text-sm';
+                            li.textContent = `${className}: ${count}`;
+                            summaryList.appendChild(li);
+                        }
+                        
+                        summaryDiv.appendChild(summaryList);
+                    } else {
+                        summaryDiv.innerHTML += '<p class="text-sm text-gray-500">Нет данных</p>';
+                    }
+                    
+                    // Обновляем историю и статистику
+                    await loadHistory();
+                    await loadStatistics();
+                    
+                } else {
+                    document.getElementById('loading').classList.add('hidden');
+                    alert('Ошибка при анализе изображения: ' + (result.error || 'Неизвестная ошибка'));
+                }
+                
+            } catch (error) {
+                document.getElementById('loading').classList.add('hidden');
+                alert('Ошибка при отправке запроса: ' + error.message);
+            }
+        }
+        
+        // Анализ группы изображений
+        async function analyzeBatchImages() {
+            const fileInput = document.getElementById('image-upload');
+            const files = fileInput.files;
+            
+            if (files.length === 0) {
+                alert('Пожалуйста, выберите хотя бы одно изображение для анализа');
+                return;
+            }
+            
+            // Показываем индикатор загрузки
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('result').classList.add('hidden');
+            
+            const results = [];
+            
+            // Обрабатываем каждое изображение
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                try {
+                    const response = await fetch('/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        results.push({
+                            filename: file.name,
+                            result: result
+                        });
+                    } else {
+                        console.error('Error processing image:', file.name, result.error);
+                    }
+                } catch (error) {
+                    console.error('Error uploading image:', file.name, error);
+                }
+            }
+            
+            // Скрываем индикатор загрузки
+            document.getElementById('loading').classList.add('hidden');
+            
+            // Сохраняем результаты в глобальную переменную для отчета
+            window.batchResults = results;
+            
+            // Обновляем историю и статистику
+            await loadHistory();
+            await loadStatistics();
+            
+            alert(`Групповой анализ завершен. Успешно обработано ${results.length} изображений.`);
+        }
+        
+        // Генерация PDF отчета
+        async function generatePDFReport() {
+            if (!window.batchResults || window.batchResults.length === 0) {
+                alert('Сначала выполните групповой анализ изображений.');
+                return;
+            }
+            
+            // Показываем индикатор загрузки
+            document.getElementById('loading').classList.remove('hidden');
+            
+            try {
+                const response = await fetch('/generate-pdf-report', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ results: window.batchResults })
+                });
+                
+                if (response.ok) {
+                    // Создаем временный элемент для скачивания
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `toy_detection_report_${new Date().toISOString().split('T')[0]}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    const error = await response.json();
+                    alert('Ошибка при генерации PDF отчета: ' + error.error);
+                }
+            } catch (error) {
+                alert('Ошибка при генерации PDF отчета: ' + error.message);
+            } finally {
+                // Скрываем индикатор загрузки
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+
+        // Включение/выключение веб-камеры
+        async function toggleCamera() {
+            const startButton = document.getElementById('start-camera');
+            const captureButton = document.getElementById('capture');
+            const statusIndicator = document.getElementById('camera-status');
+            const statusText = document.getElementById('camera-status-text');
+            const video = document.getElementById('webcam-feed');
+            
+            if (stream) {
+                // Выключение камеры
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                video.srcObject = null;
+                
+                startButton.textContent = 'Включить камеру';
+                statusIndicator.className = 'status-indicator';
+                statusText.textContent = 'Камера выключена';
+                captureButton.disabled = true;
+                
+            } else {
+                // Включение камеры
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { width: 640, height: 480 } 
+                    });
+                    video.srcObject = stream;
+                    
+                    startButton.textContent = 'Выключить камеру';
+                    statusIndicator.className = 'status-indicator status-active';
+                    statusText.textContent = 'Камера включена';
+                    captureButton.disabled = false;
+                    
+                } catch (error) {
+                    console.error('Error accessing camera:', error);
+                    alert('Не удалось получить доступ к камере: ' + error.message);
+                }
+            }
+        }
+
+        // Сделать снимок с веб-камеры и проанализировать
+        async function captureAndAnalyze() {
+            if (!stream) {
+                alert('Камера не включена');
+                return;
+            }
+            
+            const video = document.getElementById('webcam-feed');
+            
+            // Создаем canvas для захвата кадра
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Конвертируем в base64
+            const imageData = canvas.toDataURL('image/jpeg');
+            
+            // Показываем индикатор загрузки
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('webcam-result').classList.add('hidden');
+            
+            try {
+                const response = await fetch('/webcam', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ image: imageData })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Скрываем индикатор загрузки и показываем результат
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('webcam-result').classList.remove('hidden');
+                    
+                    // Отображаем результат
+                    document.getElementById('webcam-result-image').src = '/' + result.result_image;
+                    
+                    // Отображаем детекции
+                    const detectionsDiv = document.getElementById('webcam-detections');
+                    detectionsDiv.innerHTML = '<h4 class="font-semibold text-sm mb-2">Детекции:</h4>';
+                    
+                    if (result.detections.length > 0) {
+                        const detectionsList = document.createElement('ul');
+                        detectionsList.className = 'list-disc pl-5';
+                        
+                        result.detections.forEach(detection => {
+                            const li = document.createElement('li');
+                            li.className = 'text-sm';
+                            li.textContent = `${detection.class}: ${(detection.confidence * 100).toFixed(1)}%`;
+                            detectionsList.appendChild(li);
+                        });
+                        
+                        detectionsDiv.appendChild(detectionsList);
+                    } else {
+                        detectionsDiv.innerHTML += '<p class="text-sm text-gray-500">Объекты не найдены</p>';
+                    }
+                    
+                    // Отображаем сводку
+                    const summaryDiv = document.getElementById('webcam-summary');
+                    summaryDiv.innerHTML = '<h4 class="font-semibold text-sm mb-2">Сводка:</h4>';
+                    
+                    if (Object.keys(result.summary).length > 0) {
+                        const summaryList = document.createElement('ul');
+                        summaryList.className = 'list-disc pl-5';
+                        
+                        for (const [className, count] of Object.entries(result.summary)) {
+                            const li = document.createElement('li');
+                            li.className = 'text-sm';
+                            li.textContent = `${className}: ${count}`;
+                            summaryList.appendChild(li);
+                        }
+                        
+                        summaryDiv.appendChild(summaryList);
+                    } else {
+                        summaryDiv.innerHTML += '<p class="text-sm text-gray-500">Нет данных</p>';
+                    }
+                    
+                    // Обновляем историю и статистику
+                    await loadHistory();
+                    await loadStatistics();
+                    
+                } else {
+                    document.getElementById('loading').classList.add('hidden');
+                    alert('Ошибка при анализе изображения: ' + (result.error || 'Неизвестная ошибка'));
+                }
+                
+            } catch (error) {
+                document.getElementById('loading').classList.add('hidden');
+                alert('Ошибка при отправке запроса: ' + error.message);
+            }
+        }
+
+        // Генерация отчета
+        function generateReport() {
+            // Создаем временный элемент для скачивания
+            const a = document.createElement('a');
+            a.href = '/report';
+            a.download = '';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    </script>
+</body>
+</html>
