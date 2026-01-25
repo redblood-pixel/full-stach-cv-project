@@ -20,8 +20,51 @@ os.makedirs('static/uploads', exist_ok=True)
 os.makedirs('static/results', exist_ok=True)
 os.makedirs('reports', exist_ok=True)
 
+import requests
+import os
+from pathlib import Path
+
+def download_ya_disk(public_url, output_name="best.pt"):
+    """
+    Скачивает файл с публичной ссылки Яндекс.Диска и сохраняет под именем output_name.
+    """
+    # Шаг 1: Получаем прямую ссылку через Yandex API
+    api_url = "https://cloud-api.yandex.net/v1/disk/public/resources/download"
+    params = {"public_key": public_url}
+    
+    response = requests.get(api_url, params=params)
+    if response.status_code != 200:
+        raise Exception(f"❌ Ошибка получения ссылки: {response.status_code}, {response.text}")
+    
+    download_url = response.json().get("href")
+    if not download_url:
+        raise Exception("❌ Не удалось получить ссылку на скачивание")
+
+    # Шаг 2: Скачиваем файл
+    print("🔽 Скачиваю файл...")
+    download_response = requests.get(download_url, stream=True)
+    download_response.raise_for_status()
+
+    # Определим размер файла для прогресс-бара (опционально)
+    total_size = int(download_response.headers.get('content-length', 0))
+
+    with open(output_name, 'wb') as f:
+        downloaded = 0
+        for chunk in download_response.iter_content(chunk_size=8192):
+            f.write(chunk)
+            downloaded += len(chunk)
+            if total_size > 0:
+                done = int(50 * downloaded / total_size)
+                percent = downloaded * 100 // total_size
+                print(f"\r [{'=' * done}{' ' * (50-done)}] {percent}%", end='', flush=True)
+    
+    print(f"\n✅ Успешно скачано: {output_name}")
+
+
+public_link = "https://disk.yandex.ru/d/kiVMroVViIL4gw"  # твоя ссылка
+download_ya_disk(public_link, "best.pt")
 # Загружаем модель YOLOv8
-model = YOLO('runs/detect/train/weights/best.pt')
+model = YOLO('best.pt')
 
 # Файл для хранения истории запросов
 HISTORY_FILE = 'request_history.json'
