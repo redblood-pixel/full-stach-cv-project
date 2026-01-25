@@ -9,6 +9,7 @@ reports/
 *.pt
 .DS_Store
 request_history.json
+runs/
 
 # C extensions
 *.so
